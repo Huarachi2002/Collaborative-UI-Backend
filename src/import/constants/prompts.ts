@@ -1,207 +1,329 @@
-export const promptIABoceto:string = `Analiza esta imagen de boceto y extrae todos los elementos visuales para convertirlos en objetos JSON precisos.
+const promptGeneral: string = `
+    TAREA: Genera un Objeto compatible con el formato y estructura empleado en la libreria de GrapesJS SDK. Se debe identificar para que tamaño de pantalla se realizó el boceto 360x640, 375x812 o 768x1024.
 
-TAREA: Genera un JSON con un array 'elements' que contenga todos los objetos detectados con coordenadas y propiedades exactas. Usa un canvas de 1000x1000 unidades.
+    PASOS:
+    1. Identifica los bordes y contornos principales
+    2. Detecta figuras geométricas básicas
+    3. IMPORTANTE: Asocia cada elemento identificado con un componente específico de GrapesJS o de los plugins configurados:
+       - Para tablas, usa los componentes del plugin 'tableComponent'
+       - Para galerías, usa 'fsLightboxComponent' o 'lightGalleryComponent'
+       - Para carruseles, usa 'swiperComponent'
+       - Para iconos, usa el plugin 'iconifyComponent'
+       - Para acordeones, usa 'accordionComponent'
+       - Para layouts flexibles, usa 'flexComponent'
+       - Para texto enriquecido, usa 'rteTinyMce'
+    4. Busca texto y elementos tipográficos
+    5. Captura relaciones espaciales entre elementos
+    6. Usa colores coherentes con los tonos observados en la imagen
+    7. Identifica los estilos de posicionamiento y alineación de los elementos
+    8. Construye la estructura usando los tipos de componente correctos de los plugins disponibles
 
-PASOS:
-1. Identifica los bordes y contornos principales
-2. Detecta figuras geométricas básicas
-3. Reconoce líneas rectas y conexiones
-4. Busca texto y elementos tipográficos
-5. Identifica dibujos a mano alzada que requieran paths
-6. Captura relaciones espaciales entre elementos
-7. Usa colores coherentes con los tonos observados en la imagen
+    ## PLUGINS DISPONIBLES Y SUS COMPONENTES
 
-IMPORTANTE: Si un elemento no se ajusta perfectamente a una figura geométrica básica, utiliza "path" para representarlo fielmente.
+    1. tableComponent: 
+       - Tipo: "table"
+       - Propiedades específicas: rows, columns, headers
+       Ejemplo: {"type":"table","rows":3,"columns":4,"headers":true}
 
-Cada objeto debe seguir este formato según su tipo:
-                                                
-1. RECTÁNGULO:
-{
-    "type": "rectangle",
-    "left": [posición X],
-    "top": [posición Y],
-    "width": [ancho],
-    "height": [alto],
-    "fill": [color hexadecimal],
-    "stroke": [color hexadecimal],
-    "objectId": "[id único]"
-}
-                                                
-2. CÍRCULO:
-{
-    "type": "circle",
-    "left": [posición X],
-    "top": [posición Y],
-    "radius": [radio],
-    "fill": [color hexadecimal],
-    "stroke": [color hexadecimal],
-    "objectId": "[id único]"
-}
-                                                
-3. TRIÁNGULO:
-{
-    "type": "triangle",
-    "left": [posición X],
-    "top": [posición Y],
-    "width": [ancho],
-    "height": [alto],
-    "fill": [color hexadecimal],
-    "stroke": [color hexadecimal],
-    "objectId": "[id único]"
-}
-                                                
-4. LÍNEA:
-{
-    "type": "line",
-    "points": [[x1], [y1], [x2], [y2]],
-    "stroke": [color hexadecimal],
-    "strokeWidth": 2,
-    "objectId": "[id único]"
-}
-                                                
-5. TEXTO:
-{
-    "type": "text",
-    "left": [posición X],
-    "top": [posición Y],
-    "text": [texto detectado],
-    "fill": [color hexadecimal],
-    "fontFamily": "Helvetica",
-    "fontSize": 36,
-    "fontWeight": "400",
-    "objectId": "[id único]"
-}
+    2. fsLightboxComponent y lightGalleryComponent:
+       - Tipo: "lightbox" o "gallery"
+       - Propiedades específicas: images[], thumbnails, lightboxOptions
+       Ejemplo: {"type":"lightbox","images":["url1.jpg","url2.jpg"]}
 
-6. PATH (dibujo a mano alzada):
-{
-    "type": "path",
-    "path": [string de datos SVG path],
-    "fill": [color hexadecimal],
-    "stroke": [color hexadecimal],
-    "strokeWidth": [ancho de línea],
-    "objectId": "[id único]"
-}
+    3. swiperComponent:
+       - Tipo: "swiper"
+       - Propiedades específicas: slides[], loop, navigation
+       Ejemplo: {"type":"swiper","slides":[{"content":"Slide 1"},{"content":"Slide 2"}],"loop":true,"navigation":true}
 
-Devuelve ÚNICAMENTE el JSON válido sin explicaciones adicionales ni markdown.`;
+    4. iconifyComponent:
+       - Tipo: "iconify"
+       - Propiedades específicas: icon, width, height, color
+       Ejemplo: {"type":"iconify","icon":"mdi:home","width":"24px","height":"24px","color":"#333"}
 
-export const promptSimplificadoIABoceto:string = `Analiza esta imagen de un boceto o diagrama y conviértela en objetos JSON.
+    5. accordionComponent:
+       - Tipo: "accordion"
+       - Propiedades específicas: items[], multiple, collapse
+       Ejemplo: {"type":"accordion","items":[{"title":"Sección 1","content":"Contenido 1"},{"title":"Sección 2","content":"Contenido 2"}]}
 
-Genera un JSON con un array 'elements' que contenga los objetos detectados en un canvas de 1000x1000.
+    6. flexComponent:
+       - Tipo: "flex"
+       - Propiedades específicas: direction, justifyContent, alignItems
+       Ejemplo: {"type":"flex","direction":"row","justifyContent":"space-between","alignItems":"center","components":[...]}
 
-Identifica:
-- Rectángulos: {"type": "rectangle", "left": X, "top": Y, "width": W, "height": H, "fill": "#color", "stroke": "#color"}
-- Círculos: {"type": "circle", "left": X, "top": Y, "radius": R, "fill": "#color", "stroke": "#color"}
-- Triángulos: {"type": "triangle", "left": X, "top": Y, "width": W, "height": H, "fill": "#color", "stroke": "#color"}
-- Líneas: {"type": "line", "points": [X1, Y1, X2, Y2], "stroke": "#color", "strokeWidth": 2}
-- Texto: {"type": "text", "left": X, "top": Y, "text": "texto", "fill": "#color", "fontSize": 36}
-- Paths: {"type": "path", "path": "SVG path data", "stroke": "#color"}
+    ## ESTRUCTURA PROJECTDATA REQUERIDA
 
-Incluye "objectId": "id-único" para cada elemento.
-
-Responde solo con el JSON.`;
-
-export const promptBasicoIABoceto:string = `Mira esta imagen y crea un JSON con formas básicas.
-
-Formato: 
-{
-  "elements": [
-    {"type": "rectangle", "left": 100, "top": 100, "width": 200, "height": 100, "fill": "#cccccc", "objectId": "1"},
-    {"type": "circle", "left": 400, "top": 300, "radius": 50, "fill": "#dddddd", "objectId": "2"},
-    {"type": "line", "points": [500, 500, 700, 700], "stroke": "#000000", "objectId": "3"}
-  ]
-}
-
-Solo identifica formas básicas.`;
-
-export const promptIAComponentsAngular = (options: string) => {
-    return `Analiza esta imagen de un diagrama o mockup visual y genera un proyecto Angular completo basado en lo que ves.
-    Eres un experto en Angular que genera código de alta calidad compatible con la versión más reciente de Angular.
-    
-    ## INSTRUCCIONES PRINCIPALES:
-
-    1. ANÁLISIS DE LA IMAGEN:
-       - Interpreta la imagen e identifica todos los componentes visuales (formularios, tablas, botones, menús, etc).
-       - Reconoce la estructura y jerarquía de la interfaz (header, sidebar, main content, footer).
-       - Identifica flujos de navegación o acciones del usuario implícitas.
-
-    2. GENERACIÓN DE CÓDIGO DE COMPONENTES:
-       - Crea componentes Angular STANDALONE para cada elemento significativo (compatibles con Angular 19+).
-       - Asegúrate de que todos los componentes incluyan "standalone: true" en su decorador @Component.
-       - Incluye los imports necesarios para cada componente (CommonModule, RouterModule, FormsModule, etc.)
-       - Genera formularios reactivos con FormBuilder y ReactiveFormsModule donde sea apropiado.
-       - Declara explícitamente todas las variables, inicializa @Input(), @Output() y utiliza tipos TypeScript.
-       
-    3. ESTRUCTURA Y SERVICIOS:
-       - Implementa una estructura de rutas clara usando Routes en app.routes.ts (modelo standalone).
-       - Asegura que todos los servicios usen el decorador @Injectable({providedIn: 'root'}).
-       - Implementa servicios CRUD completos con HttpClient y environment.
-       - Utiliza observables (rxjs) para comunicación reactiva entre componentes.
-
-    4. INTEGRACIÓN Y BUENAS PRÁCTICAS:
-       - Asegúrate de que app.component incluya router-outlet si estás usando rutas.
-       - Incluye imports completos y correctos en cada archivo.
-       - Asegura que las propiedades @Input tengan inicialización de valor por defecto.
-       - Evita código duplicado y aislado que no se integre en el proyecto.
-       - Implementa interfaces o modelos para las estructuras de datos.
-       - Usa herencia o composición cuando sea apropiado para código reutilizable.
-
-    ## ESPECÍFICAMENTE PARA ANGULAR 19+:
-    - Usa únicamente componentes standalone (no módulos NgModule, excepto para librerías externas).
-    - Configura correctamente en app.config.ts si es necesario.
-    - Utiliza el bootstrap con provideRouter en vez de los módulos de enrutamiento antiguos.
-    - Asegúrate que todos los componentes declaren sus dependencias en el array "imports" del decorador.
-    - Evita referencias a NgModule o a estrategias anteriores de organización de código.
-    
-    ## PREVENCIÓN DE ERRORES COMUNES:
-    - Inicializa SIEMPRE valores para propiedades @Input() (ej: @Input() title: string = '';)
-    - Implementa siempre la interfaz OnInit si usas ngOnInit().
-    - Incluye CommonModule en los imports si usas directivas como *ngIf o *ngFor.
-    - Implementa servicios con observables BehaviorSubject para estado compartido.
-    - No dupliques funciones o métodos entre componentes.
-    - Utiliza tipado fuerte en todas las variables y funciones.
-    - Asegúrate de que las rutas sean correctas y no contengan caracteres especiales.
-
-    ## ESTRUCTURA JSON REQUERIDA DE LA RESPUESTA:
-
-    Opciones de proyecto: ${options}
-
-    Responde con un objeto JSON con exactamente esta estructura:
-
+    json
     {
-      "projectStructure": {
-        "description": "Descripción detallada de la estructura del proyecto y cómo se relacionan los componentes"
-      },
-      "appComponent": {
-        "html": "Código completo para app.component.html con router-outlet si usa rutas",
-        "ts": "Código para app.component.ts con standalone:true y todos los imports",
-        "scss": "Estilos para app.component.scss con diseño responsive"
-      },
-      "components": {
-        "component-name-1": {
-          "ts": "Código TypeScript para el componente con todas las importaciones, validaciones y lógica",
-          "html": "Plantilla HTML completa con eventos y bindings",
-          "scss": "Estilos SCSS específicos para este componente"
-        },
-        "component-name-2": {
-          "ts": "...",
-          "html": "...",
-          "scss": "..."
+      "assets": [],
+      "styles": [
+        {
+          "selectors": ["#selector", ".class"],
+          "style": {
+            "property": "value"
+          }
         }
-      },
-      "services": {
-        "data.service": "// Implementación completa del servicio con métodos CRUD",
-        "auth.service": "// Servicio de autenticación si es aplicable"
-      },
-      "models": {
-        "user.model": "// Interface o clase con propiedades tipadas",
-        "product.model": "// Otro modelo si corresponde"
-      },
-      "routing": "// Contenido de app.routes.ts con rutas bien definidas"
+      ],
+      "pages": [
+        {
+          "name": "Página Principal",
+          "frames": [
+            {
+              "component": {
+                "type": "wrapper",
+                "components": [
+                  // UTILIZA LOS COMPONENTES DE LOS PLUGINS CONFIGURADOS AQUÍ
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
 
-    IMPORTANTE: Todos los nombres de componentes deben usar kebab-case y cada componente debe estar completo y funcional.
-    Asegúrate de que cada archivo tenga todas las importaciones necesarias y que el código esté correctamente tipado.
-    Cada componente debe ser standalone e importar sus dependencias directamente.
-    El JSON resultante debe ser válido y sin errores de sintaxis.
-    Evitar métodos o funciones parcialmente implementadas con "// TODO" o código incompleto.`;
+    IMPORTANTE: 
+        * El JSON debe ser funcionalmente completo, no solo estructuralmente válido.
+        * OBLIGATORIO: Utiliza los tipos de componentes específicos de los plugins configurados, NO crees componentes genéricos.
+        * Cuando identifiques un elemento en el boceto, SIEMPRE busca primero el componente más adecuado de los plugins disponibles.
+        * Para layouts y contenedores, prioriza el uso de 'flexComponent'.
+        * Para iconos, SIEMPRE usa 'iconifyComponent' con el ícono apropiado de la librería Iconify.
+        * Para elementos interactivos como acordeones o carruseles, usa los plugins específicos en lugar de div genéricos.
+        
+        * Los plugins específicos configurados en GrapesJS son: 
+            plugins: [
+              tableComponent.init({}),
+              listPagesComponent.init({}),
+              fsLightboxComponent.init({}),
+              lightGalleryComponent.init({}),
+              swiperComponent.init({}),
+              iconifyComponent.init({}),
+              accordionComponent.init({}),
+              flexComponent.init({}),
+              rteTinyMce.init({}),
+              canvasGridMode.init({}),
+              layoutSidebarButtons.init({}),
+            ]
+
+        * Ejemplos adicionales de uso correcto de componentes:
+          
+          1. Barra de navegación: 
+             {"type":"flex","direction":"row","justifyContent":"space-between","attributes":{"class":"navbar"},"components":[
+               {"type":"iconify","icon":"mdi:menu"},
+               {"type":"text","content":"Mi App"},
+               {"type":"iconify","icon":"mdi:account"}
+             ]}
+          
+          2. Carrusel de imágenes: 
+             {"type":"swiper","slides":[
+               {"type":"image","attributes":{"src":"img1.jpg"}},
+               {"type":"image","attributes":{"src":"img2.jpg"}}
+             ],"navigation":true,"pagination":true}
+          
+          3. Lista con iconos:
+             {"type":"flex","direction":"column","components":[
+               {"type":"flex","direction":"row","components":[
+                 {"type":"iconify","icon":"mdi:check","color":"green"},
+                 {"type":"text","content":"Item completado"}
+               ]},
+               {"type":"flex","direction":"row","components":[
+                 {"type":"iconify","icon":"mdi:close","color":"red"},
+                 {"type":"text","content":"Item pendiente"}
+               ]}
+             ]}
+`;
+
+export const promptIABoceto:string = `
+    Analiza esta imagen que corresponde a un boceto de Interfaz de Usuario de una aplicacion movil y extrae todos los elementos visuales para convertirlos en un Objeto compatible con GrapesJS SDK, UTILIZANDO EXCLUSIVAMENTE los componentes y plugins ya configurados en el proyecto.
+
+    ${promptGeneral}
+`;
+
+
+export const promptIAGenerateFromPrompt = (prompt:string) => {
+  return `
+    El usuario ha proporcionado el siguiente prompt: "${prompt}".
+    Tu tarea es generar un objeto JSON que represente un proyecto de GrapesJS SDK basado en este prompt.
+
+    ${promptGeneral}
+  `
+}
+
+
+export const promptIAComponentsFlutter = (grapesJsData: string) => {
+    return `
+    Analiza el siguiente objeto JSON que representa una estructura de datos de GrapesJS que describe una interfaz gráfica de aplicación móvil donde cada página representa una pantalla con posibilidad de navegación entre pantallas.
+
+      Estructura de datos GrapesJS: ${grapesJsData}
+
+      TAREAS ESPECÍFICAS:
+      
+      1. ANÁLISIS DE ESTRUCTURA:
+         - Interpretar el objeto JSON de GrapesJS (assets, styles, pages, frames, components)
+         - Identificar componentes de UI y su jerarquía (wrapper, text, button, input, etc.)
+         - Mapear estilos CSS a propiedades de widgets Flutter equivalentes
+         - Detectar patrones de navegación entre páginas/frames
+      
+      2. GENERACIÓN DE CÓDIGO FLUTTER:
+         - Crear widgets Flutter que representen la estructura visual detectada
+         - Implementar navegación entre pantallas usando GoRouter
+         - Generar modelos de datos basados en la estructura detectada
+         - Crear servicios para manejo de estado con Riverpod
+         - Implementar base de datos local con Isar
+         - Añadir funcionalidades de conectividad y notificaciones
+      
+      3. MAPEO DE COMPONENTES GRAPESJS A FLUTTER:
+         - type: "text" → Text widget con estilos apropiados
+         - type: "button" → ElevatedButton, TextButton, o OutlinedButton
+         - type: "input" → TextField con configuración apropiada
+         - type: "image" → Image widget con manejo de assets
+         - type: "flex" → Column, Row, o Flex widgets
+         - type: "wrapper" → Container, Scaffold, o widgets de layout
+         - Elementos con estilos → aplicar Theme y decoraciones
+      
+      4. ESTRUCTURA DE PROYECTO FLUTTER:
+         - /lib/main.dart - Punto de entrada de la aplicación
+         - /lib/app.dart - Configuración principal de la app
+         - /lib/router/app_router.dart - Configuración de rutas con GoRouter
+         - /lib/models/ - Modelos de datos con anotaciones Isar
+         - /lib/providers/ - Providers de Riverpod para estado global
+         - /lib/services/ - Servicios HTTP, base de datos, notificaciones
+         - /lib/screens/ - Pantallas de la aplicación
+         - /lib/widgets/ - Widgets reutilizables
+         - /lib/utils/ - Utilidades y constantes
+         - /lib/theme/ - Configuración de tema y estilos
+      
+      5. FUNCIONALIDADES REQUERIDAS:
+         - Navegación fluida entre pantallas
+         - Estado reactivo con Riverpod
+         - Persistencia local con Isar
+         - Conectividad de red con HTTP
+         - Notificaciones locales
+         - Geolocalización básica
+         - Manejo de preferencias del usuario
+         - Arquitectura escalable y mantenible
+      
+      6. COMPATIBILIDAD Y DEPENDENCIAS:
+         - Flutter 3.24.5
+         - Todas las dependencias especificadas en pubspec.yaml
+         - Código compatible con Android e iOS
+         - Null safety habilitado
+         - Buenas prácticas de Flutter
+      
+      IMPORTANTE:
+      - Cada página del JSON de GrapesJS debe convertirse en una pantalla Flutter separada
+      - Los componentes dentro de frames deben mapearse a widgets Flutter apropiados
+      - Los estilos CSS deben convertirse a propiedades de Flutter (colors, padding, margin, etc.)
+      - Implementar navegación entre las páginas detectadas
+      - Generar datos de demostración para mostrar funcionalidad
+      - El código debe ser completamente funcional y ejecutable
+      - Seguir convenciones de nomenclatura de Flutter (snake_case para archivos, camelCase para variables)
+      
+      Formato de salida: Devuelve únicamente el código de Flutter sin explicaciones adicionales ni markdown en un objeto json con la siguiente estructura:
+
+          [
+              {
+                  "filepath": "lib/",
+                  "filename": "main.dart",
+                  "filecontent": "import 'package:flutter/material.dart';\n// código completo aquí"
+              },
+              {
+                  "filepath": "lib/",
+                  "filename": "app.dart", 
+                  "filecontent": "// código completo de configuración de la app"
+              },
+              {
+                  "filepath": "lib/router/",
+                  "filename": "app_router.dart",
+                  "filecontent": "// configuración de rutas con GoRouter"
+              }
+              // ... demás archivos necesarios
+          ]
+
+      Donde cada objeto representa un archivo necesario para la aplicación Flutter, con su ruta relativa desde lib/, nombre de archivo y contenido completo.
+      
+      NOTA: El código generado debe ser compatible con las dependencias del pubspec.yaml:
+      - flutter_riverpod: ^2.6.1
+      - go_router: ^15.1.1  
+      - http: ^1.4.0
+      - isar: 3.1.0
+      - isar_flutter_libs: 3.1.0
+      - connectivity_plus: ^6.1.4
+      - geolocator: ^10.1.0
+      - shared_preferences: ^2.5.3
+      - flutter_local_notifications: ^18.0.1
+      - Y todas las demás dependencias especificadas
+  `;
 };
+
+export const promptIAComponents = (options: string) => {
+  return `
+      Analiza el siguiente objeto que representa una estructura JSON personalizada de GrapesJS que describe una interfaz gráfica de Flutter donde cada paginas representa una pantalla donde existe la posibilidad de navegacion entre pantallas.
+
+      Tareas: 
+      * Interpretar el objeto JSON y generar un código de Flutter que represente la estructura de la interfaz gráfica, incluyendo widgets, estilos y navegación entre pantallas y componentes comunmente usados como cards, navigation bars, etc.
+
+      * Asegurarse de que el código generado sea compatible con la versión de Flutter 3.24.5 y siga las mejores prácticas de desarrollo.
+
+      * El alcance del código generado debe incluir la creación de pantallas, widgets personalizados, navegación entre pantallas el consumo de servicios mediante api rest y conexion a la base de datos local.
+
+      * Las pantallas generadas deben ser interactivas, permitir al usuario navegar entre ellas y realizar acciones con datos en memoria a manera de demostracion, no deben necesariamente estar conectadas a un backend real o una base de datos, pero deben simular la funcionalidad esperada
+
+      * La estructura de directorios y archivos debe ser organizada y seguir las convenciones de Flutter, incluyendo la creación de archivos separados para cada widget o componente, siguiendo una estructura escalable.
+
+      Objeto JSON: ${options}
+
+      Formato de salida: Devuelve únicamente el código de Flutter sin explicaciones adicionales ni markdown en un objeto json con la siguiente estructura de ejemplo.
+
+          [
+              {
+                  "filepath": "filepath/ejemplo/directory/",
+                  "filename": "filename.ext",
+                  "filecontent" : "content css, html, component, dart code, etc"
+              },
+              {/*Demas archivos necesarios */}
+          ]
+
+      Donde cada objeto en el array representa un archivo necesario para la aplicacion Flutter, con su ruta, nombre y contenido, la ruta tiene que tomas como base la carpeta lib del proyecto.
+
+      Asegúrate de que el código generado sea compatible con la versión de Flutter 3.24.5 y siga las mejores prácticas de desarrollo. 
+      
+      El codigo generado debe ser compatible con las siguientes dependencias y configuracion del pubspec.yaml:
+
+          isar_version: &isar_version 3.1.0 # define the version to be used
+
+          environment:
+          sdk: ^3.5.0
+
+          dependencies:
+          connectivity_plus: ^6.1.4
+          flutter:
+              sdk: flutter  
+          flutter_riverpod: ^2.6.1
+          geolocator: ^10.1.0
+          go_router: ^15.1.1
+          http: ^1.4.0
+          maplibre_gl: ^0.21.0 
+          path_provider: ^2.1.5
+          shared_preferences: ^2.5.3
+          socket_io_client: ^3.1.2
+          flutter_background_service: ^5.1.0
+          flutter_background_service_android: ^6.3.0
+          android_alarm_manager_plus: ^4.0.7
+          permission_handler: ^11.4.0
+          flutter_local_notifications: ^18.0.1
+          isar: *isar_version
+          isar_flutter_libs: *isar_version # contains Isar Core
+
+          dependency_overrides:
+          geolocator_android: 4.6.1
+
+          dev_dependencies:
+          flutter_lints: ^4.0.0
+          flutter_test:
+              sdk: flutter
+          isar_generator: *isar_version
+          build_runner: any
+
+          flutter:
+          uses-material-design: true
+  `;
+}

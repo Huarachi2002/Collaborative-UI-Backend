@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { v4 as uuidv4 } from 'uuid';
-import { promptIABoceto, promptIAComponentsAngular } from "../constants/prompts";
+import { promptIABoceto, promptIAComponentsFlutter, promptIAGenerateFromPrompt } from "../constants/prompts";
 import OpenAI from "openai";
 
 interface Element {
@@ -43,7 +43,7 @@ export class AiProcessingService {
         } catch (error) {
             this.logger.error(`Error al procesar con OpenAI: ${error.message}`);
             this.logger.warn('Usando elementos por defecto.');
-            return { elements: this.createDefaultElements() };
+            return { elements: [] };
         }
     }
 
@@ -76,13 +76,16 @@ export class AiProcessingService {
             });
 
             const content = response.choices[0].message.content;
+
+            console.log('Respuesta de OpenAI:', content);
             
             // Extraer y parsear la respuesta JSON
             const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
-                             content.match(/```([\s\S]*?)```/) || 
-                             [null, content];
-            
+                         content.match(/```([\s\S]*?)```/) || 
+                         [null, content];
+            console.log('JSON Match:', jsonMatch);
             let jsonString = jsonMatch[1] || content;
+            console.log('JSON String:', jsonString);
             
             // Limpiar el JSON si es necesario
             if(!jsonString.trim().startsWith('{')) {
@@ -92,66 +95,158 @@ export class AiProcessingService {
                 }
                 jsonString = jsonString.substring(startIndex);
             }
+            
+            // Asegurar que el JSON termine correctamente
+            if(!jsonString.trim().endsWith('}')) {
+                const lastBraceIndex = jsonString.lastIndexOf('}');
+                if (lastBraceIndex !== -1) {
+                    jsonString = jsonString.substring(0, lastBraceIndex + 1);
+                }
+            }
 
             const parsedData = JSON.parse(jsonString);
             
-            // Asegurarse de que hay un array de elementos
-            let elements = [];
-            if (Array.isArray(parsedData.elements)) {
-                elements = parsedData.elements;
-            } else if (Array.isArray(parsedData.shapes)) {
-                elements = parsedData.shapes;
-            } else if (Array.isArray(parsedData.objects)) {
-                elements = parsedData.objects;
-            } else if (parsedData.elements === undefined) {
-                elements = this.transformToElementsArray(parsedData);
+            // Validar estructura GrapesJS ProjectData
+            if (!this.isValidProjectData(parsedData)) {
+                this.logger.warn('Estructura ProjectData inválida, usando datos por defecto');
+                return {elements: []};
             }
-            
-            // Verificar si tenemos elementos
-            if (elements.length === 0) {
-                elements = this.createDefaultElements();
-            }
-
-            // Asegurarse de que todos los elementos tienen un objectId y coordenadas x,y
-            elements = elements.map(elem => {
-                if (!elem.objectId) {
-                    elem.objectId = uuidv4();
-                }
-                // Asegurarse de que cada elemento tiene coordenadas x, y
-                if (elem.left !== undefined && elem.x === undefined) {
-                    elem.x = elem.left;
-                }
-                if (elem.top !== undefined && elem.y === undefined) {
-                    elem.y = elem.top;
-                }
-                return elem;
-            });
-            
-            return { elements };
+            console.log('Datos procesados:', parsedData);
+            return parsedData;
         } catch (error) {
             this.logger.error(`Error al procesar el boceto con OpenAI: ${error.message}`);
             throw error;
         }
     }
 
-    public async generateAngularComponents(params: {
-        imageBase64: string;
-        options: string;
-    }): Promise<any>{
+    private createDefaultProjectData(): any {
+    return {
+        "assets": [],
+        "styles": [
+            {
+                "selectors": [".default-container"],
+                "style": {
+                    "padding": "20px",
+                    "background-color": "#f5f5f5",
+                    "min-height": "400px"
+                }
+            }
+        ],
+        "pages": [
+            {
+                "name": "Página Principal",
+                "frames": [
+                    {
+                        "component": {
+                            "type": "wrapper",
+                            "components": [
+                                {
+                                    "type": "section",
+                                    "attributes": {
+                                        "class": "default-container"
+                                    },
+                                    "components": [
+                                        {
+                                            "type": "text",
+                                            "content": "<h2>Boceto Detectado</h2><p>Se ha procesado tu boceto y se ha creado una estructura básica.</p>"
+                                        },
+                                        {
+                                            "type": "flutter-card",
+                                            "attributes": {
+                                                "class": "flutter-card",
+                                                "data-flutter-widget": "Card",
+                                                "data-flutter-package": "material"
+                                            },
+                                            "traits": {
+                                                "elevation": 4,
+                                                "borderRadius": 8,
+                                                "margin": 16,
+                                                "backgroundColor": "#ffffff"
+                                            },
+                                            "components": [
+                                                {
+                                                    "type": "text",
+                                                    "content": "<p>Contenido de la tarjeta generada automáticamente</p>"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    };
+}
+
+    private isValidProjectData(data: any): boolean {
+        return data &&
+                typeof data === 'object' &&
+                Array.isArray(data.assets) &&
+                Array.isArray(data.styles) &&
+                Array.isArray(data.pages) &&
+                data.pages.length > 0 &&
+                data.pages[0].frames &&
+                Array.isArray(data.pages[0].frames);
+    }
+
+    public async generateFlutterComponents(data: { grapesJsData: string }): Promise<any>{
         try {
             if (!this.openai) {
                 throw new Error('OpenAI no está inicializado. Verifica tu API key.');
             }
-
-            const {imageBase64, options} = params;
             
-            if (!imageBase64) {
-                throw new Error('Se requiere proporcionar una imagen (imageBase64)');
+            // Usar el nuevo prompt para Flutter
+            const prompt = promptIAComponentsFlutter(data.grapesJsData);
+
+            const response = await this.openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                max_tokens: 8000, // Aumentar límite para código Flutter más extenso
+            });
+
+
+            const content = response.choices[0].message.content;
+            this.logger.log('Respuesta de OpenAI recibida para Flutter');
+            
+            // Extraer y parsear la respuesta JSON
+            const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
+                            content.match(/```([\s\S]*?)```/) || 
+                            [null, content];
+            
+            let jsonString = jsonMatch[1] || content;
+            
+            // Limpiar el JSON si es necesario
+            if(!jsonString.trim().startsWith('[')) {
+                const startIndex = jsonString.indexOf('[');
+                if (startIndex === -1) {
+                    throw new Error('No se pudo encontrar un array JSON válido en la respuesta de OpenAI');
+                }
+                jsonString = jsonString.substring(startIndex);
             }
             
-            const prompt = promptIAComponentsAngular(options);
+            // Asegurar que el JSON termine correctamente
+            if(!jsonString.trim().endsWith(']')) {
+                const lastBracketIndex = jsonString.lastIndexOf(']');
+                if (lastBracketIndex !== -1) {
+                    jsonString = jsonString.substring(0, lastBracketIndex + 1);
+                }
+            }
 
-            return await this.generateComponentsWithOpenAI(prompt, imageBase64);
+            const parsedData = JSON.parse(jsonString);
+            
+            if (!Array.isArray(parsedData)) {
+                throw new Error('La respuesta debe ser un array de archivos Flutter');
+            }
+            
+            return parsedData;
         } catch (error) {
             this.logger.error(`Error al generar componentes Angular:`, error);
             throw new Error(`Error al generar componentes Angular: ` + error.message);
@@ -200,54 +295,66 @@ export class AiProcessingService {
         return JSON.parse(jsonString);
     }
 
-    private transformToElementsArray(data: any): Element[] {
-        const elements = [];
-        for (const key in data) {
-            if (typeof data[key] === 'object' && data[key] !== null) {
-                if (data[key].type) {
-                    elements.push(data[key]);
+    public async generateFromPrompt(propmt: string): Promise<any> {
+        try {
+            if (!this.openai) {
+                throw new Error('OpenAI no está inicializado. Verifica tu API key.');
+            }
+
+            const response = await this.openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "user",
+                        content: promptIAGenerateFromPrompt(propmt)
+                    }
+                ],
+                max_tokens: 4000,
+                temperature: 0.7
+            });
+
+            const content = response.choices[0].message.content;
+            
+            console.log('Respuesta de OpenAI:', content);
+
+            // Extraer y parsear la respuesta JSON
+            const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
+                         content.match(/```([\s\S]*?)```/) || 
+                         [null, content];
+            console.log('JSON Match:', jsonMatch);
+            let jsonString = jsonMatch[1] || content;
+            console.log('JSON String:', jsonString);
+
+            // Limpiar el JSON si es necesario
+            if(!jsonString.trim().startsWith('{')) {
+                const startIndex = jsonString.indexOf('{');
+                if (startIndex === -1) {
+                    throw new Error('No se pudo encontrar un objeto JSON válido en la respuesta de OpenAI');
+                }
+                jsonString = jsonString.substring(startIndex);
+            }
+            
+            // Asegurar que el JSON termine correctamente
+            if(!jsonString.trim().endsWith('}')) {
+                const lastBraceIndex = jsonString.lastIndexOf('}');
+                if (lastBraceIndex !== -1) {
+                    jsonString = jsonString.substring(0, lastBraceIndex + 1);
                 }
             }
-        }
-        return elements;
-    }
 
-    private createDefaultElements(): Element[] {
-        return [
-            {
-                type: "rectangle",
-                left: 100,
-                top: 100,
-                width: 200,
-                height: 150,
-                fill: "#e0e0e0",
-                objectId: uuidv4(),
-                x: 100,
-                y: 100
-            },
-            {
-                type: "circle",
-                left: 400,
-                top: 300,
-                radius: 75,
-                fill: "#d0d0d0",
-                objectId: uuidv4(),
-                x: 400,
-                y: 300
-            },
-            {
-                type: "text",
-                left: 250,
-                top: 400,
-                text: "Boceto detectado",
-                fill: "#000000",
-                fontFamily: "Helvetica",
-                fontSize: 24,
-                fontWeight: "400",
-                objectId: uuidv4(),
-                x: 250,
-                y: 400
+            const parsedData = JSON.parse(jsonString);
+
+            // Validar estructura GrapesJS ProjectData
+            if (!this.isValidProjectData(parsedData)) {
+                this.logger.warn('Estructura ProjectData inválida, usando datos por defecto');
+                return {elements: []}
             }
-        ];
+            console.log('Datos procesados:', parsedData);
+            return parsedData;
+
+        } catch (error) {
+            this.logger.error(`Error al generar desde el prompt:`, error);
+            throw new Error(`Error al generar desde el prompt: ` + error.message);
+        }
     }
 }

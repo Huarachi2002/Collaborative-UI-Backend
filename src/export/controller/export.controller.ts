@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Post, Res, UseGuards } from "@nestjs/common";
 import { Response } from "express";
 import { ExportService } from "../services/export.service";
-import { CreateAngularDto } from "../dto/create-angular.dto";
+import { CreateFlutterDto } from "../dto/create-flutter.dto";
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,17 +10,17 @@ import { v4 as uuidv4 } from 'uuid';
 export class ExportController {
     constructor(private readonly exportService: ExportService) {}
 
-    @Post("angular")
+    @Post("flutter")
     public async exportAngular(
-        @Body() createAngularDto: CreateAngularDto,
+        @Body() createFlutterDto: CreateFlutterDto,
         @Res() res: Response
     ): Promise<void>{
         try {
             // Generar el buffer del ZIP
-            const zipBuffer = await this.exportService.generateAngularProject(createAngularDto);
+            const zipBuffer = await this.exportService.generateFlutterProject(createFlutterDto);
             
             // Generar un nombre de archivo seguro
-            const safeFileName = createAngularDto.projectName
+            const safeFileName = createFlutterDto.projectName
                 .replace(/\s+/g, '-')
                 .replace(/[^a-zA-Z0-9-_]/g, '')
                 .toLowerCase();

@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { AuthTokenGuard } from "src/auth/guard";
 import { IApiResponse } from "src/common/interface";
@@ -12,67 +12,84 @@ import { AiProcessingService } from "../services/ai-processing.service";
 @Controller("import")
 @UseGuards(AuthTokenGuard)
 export class ImportController {
-    constructor(private readonly aiProcessingService: AiProcessingService) {}
+  constructor(private readonly aiProcessingService: AiProcessingService) {}
 
-    @Post("sketch")
-    @HttpCode(HttpStatus.OK)
-    @UseInterceptors(
-        FileInterceptor('sketch', {
-          storage: diskStorage({
-            destination: './uploads/sketches',
-            filename: (req, file, callback) => {
-              const uniqueSuffix = uuidv4();
-              const ext = extname(file.originalname);
-              callback(null, `sketch-${uniqueSuffix}${ext}`);
-            },
-          }),
-          fileFilter: (req, file, callback) => {
-            if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-              return callback(
-                new BadRequestException('Solo se permiten archivos de imagen'),
-                false,
-              );
-            }
-            callback(null, true);
-          },
-          limits: {
-            fileSize: 5 * 1024 * 1024, // 5MB
+  @Post("sketch")
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+      FileInterceptor('sketch', {
+        storage: diskStorage({
+          destination: './uploads/sketches',
+          filename: (req, file, callback) => {
+            const uniqueSuffix = uuidv4();
+            const ext = extname(file.originalname);
+            callback(null, `sketch-${uniqueSuffix}${ext}`);
           },
         }),
-      )
-      async processSketch(
-        @UploadedFile() file: Express.Multer.File,
-        @Req() req: Request,
-      ): Promise<IApiResponse<any>>{
-        if(!file) {
-          throw new BadRequestException('No se ha subido ningún archivo');
-        }
-        const statusCode = HttpStatus.OK;
-
-        try {
-          // Leer la imagen del archivo
-          const fs = require('fs');
-          const imageBuffer = fs.readFileSync(file.path);
-          
-          // Procesar la imagen con IA
-          const result = await this.aiProcessingService.processSketch(imageBuffer);
-
-          fs.unlink(file.path, (err) => {
-            if (err) console.error('Error al eliminar archivo temporal:', err);
-          });
-          
-          return {
-              statusCode,
-              message: 'Archivo subido y procesado correctamente',
-              data: {
-                elements: result.elements
-              }
+        fileFilter: (req, file, callback) => {
+          if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+            return callback(
+              new BadRequestException('Solo se permiten archivos de imagen'),
+              false,
+            );
           }
-        } catch (error) {
-          throw new BadRequestException('Error al procesar el boceto: ' + error.message);
-        }
+          callback(null, true);
+        },
+        limits: {
+          fileSize: 5 * 1024 * 1024, // 5MB
+        },
+      }),
+    )
+    async processSketch(
+      @UploadedFile() file: Express.Multer.File,
+      @Req() req: Request,
+    ): Promise<IApiResponse<any>>{
+      if(!file) {
+        throw new BadRequestException('No se ha subido ningún archivo');
+      }
+      const statusCode = HttpStatus.OK;
 
+      try {
+        // Leer la imagen del archivo
+        const fs = require('fs');
+        const imageBuffer = fs.readFileSync(file.path);
+        
+        // Procesar la imagen con IA
+        const result = await this.aiProcessingService.processSketch(imageBuffer);
+        console.log('Resultado del procesamiento:', result);
+        fs.unlink(file.path, (err) => {
+          if (err) console.error('Error al eliminar archivo temporal:', err);
+        });
+        
+        return {
+            statusCode,
+            message: 'Archivo subido y procesado correctamente',
+            data: {
+              elements: result
+            }
+        }
+      } catch (error) {
+        throw new BadRequestException('Error al procesar el boceto: ' + error.message);
       }
 
-      
+    }
+
+  @Post("generate-from-prompt")
+  @HttpCode(HttpStatus.OK)
+  public async generateFromPrompt(
+    @Body() data: { prompt: string },
+  ): Promise<IApiResponse<any>> {
+
+    try {
+      console.log('Datos recibidos:', data);
+      const result = await this.aiProcessingService.generateFromPrompt(data.prompt);
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Generación completada',
+        data: result,
+      };
+    } catch (error) {
+      throw new BadRequestException('Error al generar desde el prompt: ' + error.message);
+    }
+  }
 }
