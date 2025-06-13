@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
-
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Add this to your Dockerfile
 COPY src/export/templates /app/src/export/templates
@@ -64,4 +64,6 @@ RUN chmod +x ./start.sh
 EXPOSE 3001
 
 # Comando para iniciar la aplicación
-CMD ["/app/start.sh"]
+CMD echo "Esperando a que la base de datos esté lista..." && \
+    npx prisma migrate deploy && \
+    npm run start:prod
