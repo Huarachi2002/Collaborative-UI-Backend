@@ -22,7 +22,7 @@ COPY prisma ./prisma/
 COPY . .
 
 # Generar el prisma client
-RUN npx prisma generate
+RUN npx prisma generate dev
 
 # Compilar la aplicación
 RUN npm run build
