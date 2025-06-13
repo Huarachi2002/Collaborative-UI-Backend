@@ -30,13 +30,13 @@ services:
       NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgresql://postgres:123@diagram_db/Diagrama?schema=public
-      SECRET_KEY_JWT: ${SECRET_KEY_JWT}
-      ACCOUNT_EMAIL: ${ACCOUNT_EMAIL}
-      PASSWORD_EMAIL: ${PASSWORD_EMAIL}
-      HOST_EMAIL: ${HOST_EMAIL}
-      URL_FRONTEND: ${URL_FRONTEND}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      LIVEBLOCKS_SECRET_KEY: ${LIVEBLOCKS_SECRET_KEY}
+      SECRET_KEY_JWT: MILLAVE123
+      ACCOUNT_EMAIL: roberthuarachi27@gmail.com
+      PASSWORD_EMAIL: bijx toeb ayiy rvcl
+      HOST_EMAIL: smtp.gmail.com
+      URL_FRONTEND: http://localhost:3000
+      OPENAI_API_KEY: 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
+      LIVEBLOCKS_SECRET_KEY: sk_dev_HCDOF9VtNNvtlxQJkWp5naCWyq7T78MychUGsBXsKCNM112T5xoQo2fqQb8IOE4z
     ports:
       - "3001:3001"
     depends_on:
@@ -45,6 +45,7 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./temp:/app/temp
+      - ./src/export/templates:/app/src/export/templates
     networks:
       - app-network
 

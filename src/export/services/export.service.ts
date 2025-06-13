@@ -22,7 +22,7 @@ export class ExportService {
             'flutter_template',
             'flutter_project_template'  // Añadir este directorio
         );
-        
+
          // Verificar que el template existe
         if (!fs.existsSync(this.flutterTemplatePath)) {
             this.logger.error(`Template de Flutter no encontrado en ${this.flutterTemplatePath}`);

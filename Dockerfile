@@ -45,6 +45,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 
+# Add this to your Dockerfile
+COPY src/export/templates /app/src/export/templates
+
 # Instalar solo las dependencias de producción y generar el cliente Prisma
 RUN npm ci --only=production && npx prisma generate
 
