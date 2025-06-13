@@ -14,15 +14,11 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
   app.setGlobalPrefix("api");
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'https://webcolaborativaux-cgfaamc3gggwegg6.eastus-01.azurewebsites.net/',
-      'http://18.204.21.109:3000',
-      'http://100.24.58.238:3001'
-    ], // URL de tu frontend
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Añadir OPTIONS para preflight
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'], // Especificar los headers permitidos
+    credentials: false,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'auth-token'], // Especificar los headers permitidos
+    exposedHeaders: ['auth-token'],
     preflightContinue: false,
     optionsSuccessStatus: 204
   });
