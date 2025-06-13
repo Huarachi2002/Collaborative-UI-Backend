@@ -63,6 +63,20 @@ export const promptIABoceto:string = `
     4. EMOCIÓN: Considera cómo cada elemento generará respuestas emocionales (interés, confianza, entusiasmo)
     5. INNOVACIÓN: Incorpora patrones de diseño modernos y micro-interacciones donde sea apropiado
 
+    IDENTIFICACIÓN DE MÚLTIPLES PANTALLAS:
+    • Examina el boceto en busca de indicios de diferentes pantallas (flechas de navegación, múltiples marcos, numeración, etiquetas como "página 1", "pantalla 2", etc.)
+    • Analiza elementos que sugieran flujos de navegación (botones con texto como "siguiente", "atrás", "confirmar", "continuar")
+    • Busca elementos comunes que sugieran patrones de navegación (barras inferiores con iconos, menús hamburguesa, tabs superiores)
+    • Identifica flujos lógicos: login → dashboard, listado → detalle, formulario → confirmación
+    • Si ves distintas secciones separadas por líneas, marcos o espacios, probablemente sean pantallas independientes
+
+    ESTRUCTURA DE MÚLTIPLES PÁGINAS EN GRAPESJS:
+    • Crea cada pantalla identificada como una página independiente en el array "pages"
+    • Asigna nombres descriptivos a cada página (ej: "Login", "Dashboard", "Detalle Producto")
+    • Mantén consistencia visual entre páginas (misma paleta de colores, tipografías, estilos de botones)
+    • Implementa componentes interactivos que permitan la navegación entre páginas
+    • Para cada botón o elemento que deba navegar, configura el atributo "data-gjs-type" apropiado
+
     PRINCIPIOS DE DISEÑO A APLICAR:
     • Jerarquía visual clara: guía la atención del usuario a través de la interfaz
     • Consistencia: mantén patrones repetitivos en elementos similares
@@ -114,72 +128,135 @@ export const promptIAGenerateFromPrompt = (prompt:string) => {
 
 export const promptIAComponentsFlutter = (grapesJsData: string) => {
     return `
+    ACTÚA COMO UN INGENIERO SENIOR FULL STACK ESPECIALIZADO EN FLUTTER Y UX, con amplia experiencia desarrollando aplicaciones móviles funcionales y dinámicas.
+
     Analiza el siguiente objeto JSON que representa una estructura de datos de GrapesJS que describe una interfaz gráfica de aplicación móvil donde cada página representa una pantalla con posibilidad de navegación entre pantallas.
 
-      Estructura de datos GrapesJS: ${grapesJsData}
+    Estructura de datos GrapesJS: ${grapesJsData}
 
-      TAREAS ESPECÍFICAS:
+    TAREAS ESPECÍFICAS:
       
-      1. ANÁLISIS DE ESTRUCTURA:
+    1. ANÁLISIS PROFUNDO DE ESTRUCTURA Y FUNCIONALIDAD:
          - Interpretar el objeto JSON de GrapesJS (assets, styles, pages, frames, components)
          - Identificar componentes de UI y su jerarquía (wrapper, text, button, input, etc.)
          - Mapear estilos CSS a propiedades de widgets Flutter equivalentes
          - Detectar patrones de navegación entre páginas/frames
+         - IMPORTANTE: Identificar el PROPÓSITO FUNCIONAL de cada componente interactivo
       
-      2. GENERACIÓN DE CÓDIGO FLUTTER:
+      2. INTERPRETACIÓN DE COMPONENTES INTERACTIVOS:
+         - Analizar el texto y contexto de cada botón para inferir su función (login, guardar, editar, eliminar, etc.)
+         - Evaluar campos de formulario para determinar el tipo de datos que manejan
+         - Reconocer patrones comunes de UI (login, registro, dashboard, listados, detalles, CRUD)
+         - Identificar relaciones entre pantallas y flujos de usuario completos
+         - Inferir validaciones necesarias para campos de entrada basados en su contexto
+      
+      3. GENERACIÓN DE CÓDIGO FLUTTER FUNCIONAL:
          - Crear widgets Flutter que representen la estructura visual detectada
          - Implementar navegación entre pantallas usando GoRouter
-         - Generar modelos de datos basados en la estructura detectada
-         - Crear servicios para manejo de estado con Riverpod
-         - Implementar base de datos local con Isar
+         - Generar modelos de datos basados en los formularios y contenido detectados
+         - Crear servicios para manejo de estado con Provider
+         - Implementar base de datos local con Isar para persistencia de datos
          - Añadir funcionalidades de conectividad y notificaciones
+         - Implementar lógica de negocio para cada funcionalidad detectada
       
-      3. MAPEO DE COMPONENTES GRAPESJS A FLUTTER:
+      4. MAPEO DE COMPONENTES GRAPESJS A FLUTTER:
          - type: "text" → Text widget con estilos apropiados
-         - type: "button" → ElevatedButton, TextButton, o OutlinedButton
-         - type: "input" → TextField con configuración apropiada
+         - type: "button" → ElevatedButton, TextButton, o OutlinedButton CON FUNCIONALIDAD ACORDE A SU TEXTO Y CONTEXTO
+         - type: "input" → TextField con configuración apropiada Y VALIDACIONES SEGÚN EL TIPO DE DATOS ESPERADO
+         - type: "select", "option" → DropdownButton con opciones y callbacks
+         - type: "checkbox", "radio" → Checkbox, Radio con gestión de estado
          - type: "image" → Image widget con manejo de assets
          - type: "flex" → Column, Row, o Flex widgets
          - type: "wrapper" → Container, Scaffold, o widgets de layout
          - Elementos con estilos → aplicar Theme y decoraciones
       
-      4. ESTRUCTURA DE PROYECTO FLUTTER:
+      5. IMPLEMENTACIÓN DE INTERACTIVIDAD:
+         - Para botones de "Login/Registro": Implementar autenticación simulada
+         - Para botones de "Guardar/Enviar": Crear lógica de validación y persistencia
+         - Para botones de "Editar/Eliminar": Implementar operaciones CRUD
+         - Para elementos de navegación: Configurar rutas y transiciones apropiadas
+         - Para campos de búsqueda: Implementar filtrado de datos
+         - Para listas: Crear datos de demostración y funcionalidad de scroll/refresh
+         - Para formularios: Añadir validación de campos y mensajes de error
+      
+      6. ESTRUCTURA DE PROYECTO FLUTTER:
          - /lib/main.dart - Punto de entrada de la aplicación
          - /lib/app.dart - Configuración principal de la app
          - /lib/router/app_router.dart - Configuración de rutas con GoRouter
          - /lib/models/ - Modelos de datos con anotaciones Isar
-         - /lib/providers/ - Providers de Riverpod para estado global
+         - /lib/providers/ - Providers de Provider para estado global
          - /lib/services/ - Servicios HTTP, base de datos, notificaciones
          - /lib/screens/ - Pantallas de la aplicación
          - /lib/widgets/ - Widgets reutilizables
          - /lib/utils/ - Utilidades y constantes
          - /lib/theme/ - Configuración de tema y estilos
       
-      5. FUNCIONALIDADES REQUERIDAS:
+      7. FUNCIONALIDADES REQUERIDAS:
          - Navegación fluida entre pantallas
-         - Estado reactivo con Riverpod
+         - Estado reactivo con Provider
          - Persistencia local con Isar
          - Conectividad de red con HTTP
          - Notificaciones locales
          - Geolocalización básica
          - Manejo de preferencias del usuario
          - Arquitectura escalable y mantenible
+         - Implementación de un ciclo completo de CRUD para cualquier dato detectado
       
-      6. COMPATIBILIDAD Y DEPENDENCIAS:
-         - Flutter 3.13.9
+      8. COMPATIBILIDAD Y DEPENDENCIAS:
+         - Flutter 3.24.5 (IMPORTANTE: Usa ÚNICAMENTE APIs actualizadas y no obsoletas)
          - Todas las dependencias especificadas en pubspec.yaml
          - Código compatible con Android e iOS
          - Null safety habilitado
-         - Buenas prácticas de Flutter
+         - Buenas prácticas de Flutter actualizadas al 2024
+      
+      9. EVITA APIS OBSOLETAS:
+         - NO uses primary/onPrimary en ButtonStyle, usa backgroundColor/foregroundColor
+         - NO uses FlatButton, RaisedButton o OutlineButton, usa TextButton, ElevatedButton y OutlinedButton
+         - NO uses ThemeData.accentColor, usa colorScheme.secondary
+         - NO uses Scaffold.showSnackBar, usa ScaffoldMessenger
+         - NO uses deprecated APIs de Navigator 1.0, usa únicamente GoRouter
+         - NO uses Text.rich con TextSpan.children, usa RichText o Text.rich con InlineSpan
+      
+      10. USA PATRONES DE CÓDIGO ACTUALIZADOS:
+         - Para ElevatedButton: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white)
+         - Para manejo de estado: usa Provider con ChangeNotifier y Consumer
+         - Para widgets personalizados: implementa inmutabilidad con copyWith y const constructors
+         - Para navegación: utiliza GoRouter con rutas anidadas y parámetros tipados
+         - Para gestión de temas: usa ThemeData.light/dark con extensiones de temas personalizadas
       
       IMPORTANTE:
-      - Cada página del JSON de GrapesJS debe convertirse en una pantalla Flutter separada
+      - Cada página del JSON de GrapesJS debe convertirse en una pantalla Flutter separada y FUNCIONAL
       - Los componentes dentro de frames deben mapearse a widgets Flutter apropiados
       - Los estilos CSS deben convertirse a propiedades de Flutter (colors, padding, margin, etc.)
       - Implementar navegación entre las páginas detectadas
       - Generar datos de demostración para mostrar funcionalidad
-      - El código debe ser completamente funcional y ejecutable
+      - El código debe ser completamente funcional y ejecutable con LÓGICA DE NEGOCIO REAL
+      - Implementar gestión de estado para todos los componentes interactivos
       - Seguir convenciones de nomenclatura de Flutter (snake_case para archivos, camelCase para variables)
+      
+      EJEMPLOS DE FUNCIONALIDADES A IMPLEMENTAR:
+      1. Si detectas un formulario de login:
+         - Implementa validación de email/contraseña
+         - Crea un AuthProvider con Provider
+         - Simula autenticación y manejo de errores
+         - Redirige a la pantalla principal tras login exitoso
+      
+      2. Si detectas una lista de elementos:
+         - Crea un modelo de datos apropiado
+         - Implementa un repositorio para CRUD
+         - Añade funcionalidad de filtrado/búsqueda
+         - Permite navegación al detalle de cada elemento
+      
+      3. Si detectas campos de formulario:
+         - Implementa validación apropiada según el tipo de campo
+         - Crea un FormProvider para manejar el estado del formulario
+         - Añade mensajes de error y confirmación
+         - Persiste los datos al enviar el formulario
+      
+      4. Si detectas un botón sin contexto claro:
+         - Basado en su texto ("Enviar", "Guardar", "Siguiente"), implementa la funcionalidad más lógica
+         - Conecta con el provider/servicio apropiado
+         - Añade feedback visual (loading, success, error)
       
       Formato de salida: Devuelve únicamente el código de Flutter sin explicaciones adicionales ni markdown en un objeto json con la siguiente estructura:
 
@@ -209,7 +286,8 @@ export const promptIAComponentsFlutter = (grapesJsData: string) => {
           routerConfig: _router,
           title: 'Flutter Demo',
           theme: ThemeData(
-            primarySwatch: Colors.blue,
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+            useMaterial3: true,
           ),
         );
       }
@@ -217,83 +295,11 @@ export const promptIAComponentsFlutter = (grapesJsData: string) => {
       Donde cada objeto representa un archivo necesario para la aplicación Flutter, con su ruta relativa desde lib/, nombre de archivo y contenido completo.
       
       NOTA: El código generado debe ser compatible con las dependencias del pubspec.yaml:
-      - flutter_riverpod: ^2.6.1
+      - provider: ^6.1.3
       - go_router: ^15.1.1  
       - http: ^1.4.0
+      - isar: ^3.1.0
+      - shared_preferences: ^2.5.3
       - Y todas las demás dependencias especificadas
   `;
 };
-
-export const promptIAComponents = (options: string) => {
-  return `
-      Analiza el siguiente objeto que representa una estructura JSON personalizada de GrapesJS que describe una interfaz gráfica de Flutter donde cada paginas representa una pantalla donde existe la posibilidad de navegacion entre pantallas.
-
-      Tareas: 
-      * Interpretar el objeto JSON y generar un código de Flutter que represente la estructura de la interfaz gráfica, incluyendo widgets, estilos y navegación entre pantallas y componentes comunmente usados como cards, navigation bars, etc.
-
-      * Asegurarse de que el código generado sea compatible con la versión de Flutter 3.24.5 y siga las mejores prácticas de desarrollo.
-
-      * El alcance del código generado debe incluir la creación de pantallas, widgets personalizados, navegación entre pantallas el consumo de servicios mediante api rest y conexion a la base de datos local.
-
-      * Las pantallas generadas deben ser interactivas, permitir al usuario navegar entre ellas y realizar acciones con datos en memoria a manera de demostracion, no deben necesariamente estar conectadas a un backend real o una base de datos, pero deben simular la funcionalidad esperada
-
-      * La estructura de directorios y archivos debe ser organizada y seguir las convenciones de Flutter, incluyendo la creación de archivos separados para cada widget o componente, siguiendo una estructura escalable.
-
-      Objeto JSON: ${options}
-
-      Formato de salida: Devuelve únicamente el código de Flutter sin explicaciones adicionales ni markdown en un objeto json con la siguiente estructura de ejemplo.
-
-          [
-              {
-                  "filepath": "filepath/ejemplo/directory/",
-                  "filename": "filename.ext",
-                  "filecontent" : "content css, html, component, dart code, etc"
-              },
-              {/*Demas archivos necesarios */}
-          ]
-
-      Donde cada objeto en el array representa un archivo necesario para la aplicacion Flutter, con su ruta, nombre y contenido, la ruta tiene que tomas como base la carpeta lib del proyecto.
-
-      Asegúrate de que el código generado sea compatible con la versión de Flutter 3.24.5 y siga las mejores prácticas de desarrollo. 
-      
-      El codigo generado debe ser compatible con las siguientes dependencias y configuracion del pubspec.yaml:
-
-          isar_version: &isar_version 3.1.0 # define the version to be used
-
-          environment:
-          sdk: ^3.5.0
-
-          dependencies:
-          connectivity_plus: ^6.1.4
-          flutter:
-              sdk: flutter  
-          flutter_riverpod: ^2.6.1
-          geolocator: ^10.1.0
-          go_router: ^15.1.1
-          http: ^1.4.0
-          maplibre_gl: ^0.21.0 
-          path_provider: ^2.1.5
-          shared_preferences: ^2.5.3
-          socket_io_client: ^3.1.2
-          flutter_background_service: ^5.1.0
-          flutter_background_service_android: ^6.3.0
-          android_alarm_manager_plus: ^4.0.7
-          permission_handler: ^11.4.0
-          flutter_local_notifications: ^18.0.1
-          isar: *isar_version
-          isar_flutter_libs: *isar_version # contains Isar Core
-
-          dependency_overrides:
-          geolocator_android: 4.6.1
-
-          dev_dependencies:
-          flutter_lints: ^4.0.0
-          flutter_test:
-              sdk: flutter
-          isar_generator: *isar_version
-          build_runner: any
-
-          flutter:
-          uses-material-design: true
-  `;
-}

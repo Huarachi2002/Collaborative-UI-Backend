@@ -233,21 +233,4 @@ export class ExportService {
         }
     }
     
-    private shouldExcludeFromZip(fileName: string, filePath: string): boolean {
-        // Excluir archivos y directorios innecesarios
-        const excludePatterns = [
-            'node_modules',
-            '.dart_tool',
-            '.pub-cache',
-            '.gradle',
-            '.git',
-            '.gitignore',
-            '.DS_Store',
-            'generated_plugin_registrant.dart'
-        ];
-        
-        // No excluir ningún otro archivo
-        return false;
-    }
-    
 }

@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { v4 as uuidv4 } from 'uuid';
-import { promptIABoceto, promptIAComponents, promptIAComponentsFlutter, promptIAGenerateFromPrompt } from "../constants/prompts";
+import { promptIABoceto, promptIAComponentsFlutter, promptIAGenerateFromPrompt } from "../constants/prompts";
 import OpenAI from "openai";
 
 interface Element {
@@ -72,7 +71,7 @@ export class AiProcessingService {
                         ],
                     },
                 ],
-                max_tokens: 8000, 
+                max_tokens: 10000, 
             });
 
             const content = response.choices[0].message.content;
@@ -140,27 +139,59 @@ export class AiProcessingService {
             const modifiedGrapesJsData = JSON.stringify({
                 ...JSON.parse(typeof grapesJsData === 'string' ? grapesJsData : '{}'),
                 _meta: {
-                    dartSdkVersion: "3.1.5",
-                    flutterVersion: "3.13.9", // Versión compatible con tu template
+                    dartSdkVersion: "2.19.0", // Versión compatible con tu template
+                    flutterVersion: "3.24.5", // Versión compatible con tu template
                     useCompatibleDependencies: true,
                     useTemplate: true // Indicar que estamos usando un template
                 }
             });
 
             const prompt = promptIAComponentsFlutter(modifiedGrapesJsData);
+            const key = process.env.OPENAI_API_KEY;
+            const response = await fetch(
+                "https://openrouter.ai/api/v1/chat/completions",
+                {
+                    method: 'POST',
+                    headers: {
+                        "Authorization": `Bearer ${key}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        "model": "openai/o1-mini",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": prompt
+                                    }
+                                    ]
+                                }
+                            ]
+                    })
+                },
+                
+            )
 
-            const response = await this.openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
-                max_tokens: 8000, // Aumentar límite para código Flutter más extenso
-            });
+            // const response = await this.openai.chat.completions.create({
+            //     model: "gpt-4o",
+            //     messages: [
+            //         {
+            //             role: "user",
+            //             content: prompt
+            //         }
+            //     ],
+            //     max_tokens: 10000, // Aumentar límite para código Flutter más extenso
+            //     temperature: 0.3,
+            // });
+            // const content = response.choices[0].message.content;
+            
+            const data = await response.json();
+            console.log('Datos de OpenAI:', data);
+            const content = data.choices[0].message.content;
+            console.log('Contenido de OpenAI:', content);
 
-            const content = response.choices[0].message.content;
             this.logger.log('Respuesta de OpenAI recibida para componentes de Flutter');
             console.log('Respuesta de OpenAI:', content);
 
@@ -216,7 +247,7 @@ export class AiProcessingService {
                         content: promptIAGenerateFromPrompt(propmt)
                     }
                 ],
-                max_tokens: 8000, 
+                max_tokens: 10000, 
                 temperature: 0.7
             });
 
