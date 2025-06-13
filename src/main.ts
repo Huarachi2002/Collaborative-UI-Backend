@@ -16,7 +16,8 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'https://webcolaborativaux-cgfaamc3gggwegg6.eastus-01.azurewebsites.net/'
+      'https://webcolaborativaux-cgfaamc3gggwegg6.eastus-01.azurewebsites.net/',
+      'http://18.204.21.109:3000'
     ], // URL de tu frontend
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
