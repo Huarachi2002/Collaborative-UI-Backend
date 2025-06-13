@@ -8,7 +8,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123
       POSTGRES_DB: Diagrama
-      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5433:5432"
     volumes:
@@ -16,15 +15,10 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d Diagrama"]
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
-    command: >
-      postgres
-      -c max_connections=200
-      -c shared_buffers=128MB
+
 
   backend:
     build:
