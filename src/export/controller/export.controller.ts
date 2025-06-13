@@ -11,7 +11,7 @@ export class ExportController {
     constructor(private readonly exportService: ExportService) {}
 
     @Post("flutter")
-    public async exportAngular(
+    public async exportFlutter(
         @Body() createFlutterDto: CreateFlutterDto,
         @Res() res: Response
     ): Promise<void>{
@@ -58,8 +58,8 @@ export class ExportController {
                 }
             });
         } catch (error) {
-            console.error("Error generating Angular project:", error);
-            throw new BadRequestException("Failed to generate Angular project: " + error.message);
+            console.error("Error generating Flutter project:", error);
+            throw new BadRequestException("Failed to generate Flutter project: " + error.message);
         }
     }
 }

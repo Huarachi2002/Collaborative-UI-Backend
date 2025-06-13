@@ -3,56 +3,204 @@ import { AiProcessingService } from "src/import/services/ai-processing.service";
 import * as JSZip from 'jszip';
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { v4 as uuidv4 } from 'uuid';
 import { CreateFlutterDto } from "../dto/create-flutter.dto";
-import { promptIAComponentsFlutter } from "src/import/constants/prompts";
-
-const execAsync = promisify(exec);
 
 @Injectable()
 export class ExportService {
     private readonly logger = new Logger(ExportService.name);
+    private readonly flutterTemplatePath: string;
     
     constructor(
         private readonly aiProcessingService: AiProcessingService
-    ) {}
+    ) {
+        // Ruta al proyecto template de Flutter
+        this.flutterTemplatePath = path.join(
+            process.cwd(), 
+            'src', 
+            'export', 
+            'templates', 
+            'flutter_template',
+            'flutter_project_template'  // Añadir este directorio
+        );
+        
+         // Verificar que el template existe
+        if (!fs.existsSync(this.flutterTemplatePath)) {
+            this.logger.error(`Template de Flutter no encontrado en ${this.flutterTemplatePath}`);
+            throw new Error(`Template de Flutter no encontrado en ${this.flutterTemplatePath}`);
+        }
+        
+        // Verificar que el pubspec.yaml existe
+        const pubspecPath = path.join(this.flutterTemplatePath, 'pubspec.yaml');
+        if (!fs.existsSync(pubspecPath)) {
+            this.logger.error(`No se encontró pubspec.yaml en el template`);
+            throw new Error(`No se encontró pubspec.yaml en el template`);
+        }
+        
+        this.logger.log(`Template de Flutter listo para usar`);
+    }
 
     public async generateFlutterProject(createFlutterDto: CreateFlutterDto): Promise<Buffer> {
         try {
             const { projectName, grapesJsData } = createFlutterDto;
             
-            // Sanitizar el nombre del proyecto (eliminar espacios y caracteres especiales)
+            // Sanitizar el nombre del proyecto
             const safeProjectName = this.sanitizeProjectName(projectName);
             
-            // Crear un directorio único temporal para el proyecto
-            const tempDir = path.join(process.cwd(), 'temp');
-            const projectDir = path.join(tempDir, `flutter-${safeProjectName}-${uuidv4()}`);
-            
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true });
-            }
-            
-            // Crear el directorio del proyecto
-            fs.mkdirSync(projectDir, { recursive: true });
-            
-            // Generar el proyecto Flutter usando Flutter CLI
-            await this.createFlutterProject(projectDir, safeProjectName);
-            
             // Generar componentes desde los datos de GrapesJS
-            const generatedComponents = await this.generateFlutterCodeFromGrapesJS(grapesJsData);
-            
-            // Comprimir el proyecto en un archivo ZIP
-            const zipBuffer = await this.zipProject(projectDir);
-            
-            // Limpiar los archivos temporales
-            this.cleanupTempFiles(projectDir);
+            const generatedFiles = await this.generateFlutterCodeFromGrapesJS(grapesJsData);
+
+            // Generar el archivo ZIP directamente en memoria
+            const zipBuffer = await this.createProjectZipInMemory(safeProjectName, generatedFiles);
             
             return zipBuffer;
         } catch (error) {
             this.logger.error('Error generando proyecto Flutter:', error);
             throw new Error('Error al generar el proyecto Flutter: ' + error.message);
+        }
+    }
+
+    private async createProjectZipInMemory(projectName: string, generatedFiles: any[]): Promise<Buffer> {
+        this.logger.log(`Creando ZIP en memoria para el proyecto ${projectName}...`);
+        
+        const zip = new JSZip();
+        const projectFolder = zip.folder(projectName);
+        
+        if (!projectFolder) {
+            throw new Error('Error creando carpeta raíz en el ZIP');
+        }
+        
+        // 1. Añadir todos los archivos del template excepto la carpeta lib
+        await this.addTemplateFilesToZip(projectFolder);
+        
+        // 2. Actualizar el pubspec.yaml con el nombre del proyecto
+        await this.addModifiedPubspecToZip(projectFolder, projectName);
+        
+        // 3. Crear la carpeta lib y añadir los archivos generados por la IA
+        await this.addGeneratedFilesToZip(projectFolder, generatedFiles);
+        
+        // 4. Generar el buffer del ZIP
+        this.logger.log('Comprimiendo proyecto...');
+        return await zip.generateAsync({
+            type: "nodebuffer",
+            compression: "DEFLATE",
+            compressionOptions: { level: 6 }
+        });
+    }
+
+    private async addTemplateFilesToZip(projectFolder: JSZip): Promise<void> {
+        // Función recursiva para agregar archivos del template al ZIP
+        const addDirToZip = async (sourcePath: string, zipFolder: JSZip, relativePath: string = '') => {
+        try {
+            const fullSourcePath = path.join(sourcePath, relativePath);
+            this.logger.log(`Procesando directorio: ${fullSourcePath}`);
+            
+            // Verificar que el directorio existe
+            if (!fs.existsSync(fullSourcePath)) {
+                this.logger.error(`Directorio no encontrado: ${fullSourcePath}`);
+                return;
+            }
+            
+            const entries = fs.readdirSync(fullSourcePath);
+            this.logger.log(`Encontrados ${entries.length} archivos/carpetas en ${relativePath || 'raíz'}`);
+            
+            for (const entry of entries) {
+                const fullPath = path.join(fullSourcePath, entry);
+                const zipPath = relativePath ? path.join(relativePath, entry) : entry;
+                
+                // Excluir solo la carpeta lib
+                if ((entry === 'lib') && fs.statSync(fullPath).isDirectory()) {
+                    this.logger.log(`Excluyendo carpeta lib para reemplazo`);
+                    continue;
+                }
+                
+                // Excluir archivos temporales o de desarrollo
+                if (['.dart_tool', '.idea', 'build', '.git'].includes(entry)) {
+                    this.logger.log(`Excluyendo directorio de desarrollo: ${entry}`);
+                    continue;
+                }
+                
+                const isDirectory = fs.statSync(fullPath).isDirectory();
+                
+                if (isDirectory) {
+                    // Si es un directorio, crear en el ZIP y procesar recursivamente
+                    this.logger.log(`Creando directorio en ZIP: ${zipPath}`);
+                    const newFolder = zipFolder.folder(entry);
+                    if (newFolder) {
+                        await addDirToZip(sourcePath, newFolder, zipPath);
+                    }
+                } else {
+                    // Agregar archivo al ZIP
+                    try {
+                        const fileContent = fs.readFileSync(fullPath);
+                        zipFolder.file(entry, fileContent);
+                        this.logger.log(`Archivo añadido: ${zipPath}`);
+                    } catch (fileError) {
+                        this.logger.error(`Error leyendo archivo ${fullPath}: ${fileError.message}`);
+                    }
+                }
+            }
+        } catch (error) {
+            this.logger.error(`Error procesando directorio ${relativePath}: ${error.message}`);
+            throw error;
+        }
+    };
+    
+    // Agregar todos los archivos del template excepto la carpeta lib
+    this.logger.log(`Añadiendo archivos del template desde: ${this.flutterTemplatePath}`);
+    await addDirToZip(this.flutterTemplatePath, projectFolder);
+    }
+
+    private async addModifiedPubspecToZip(projectFolder: JSZip, projectName: string): Promise<void> {
+        const pubspecPath = path.join(this.flutterTemplatePath, 'pubspec.yaml');
+        
+        if (fs.existsSync(pubspecPath)) {
+            this.logger.log('pubspec.yaml encontrado correctamente');
+            let pubspecContent = fs.readFileSync(pubspecPath, 'utf8');
+            
+            // Actualizar el nombre del proyecto y la descripción
+            pubspecContent = pubspecContent.replace(/name:\s*[\w_]+/, `name: ${projectName}`);
+            
+            projectFolder.file('pubspec.yaml', pubspecContent);
+        } else {
+            throw new Error('No se encontró el archivo pubspec.yaml en el template');
+        }
+    }
+
+    private async addGeneratedFilesToZip(projectFolder: JSZip, generatedFiles: any[]): Promise<void> {
+        // Crear la carpeta lib si no existe
+        const libFolder = projectFolder.folder('lib');
+        
+        if (!libFolder) {
+            throw new Error('Error creando carpeta lib en el ZIP');
+        }
+
+        this.logger.log(`Añadiendo ${generatedFiles.length} archivos generados a la carpeta lib`);
+        
+        // Agregar los archivos generados
+        for (const file of generatedFiles) {
+            try {
+                // Normalizar la ruta: eliminar 'lib/' al principio si existe
+                let filepath = file.filepath || '';
+                if (filepath.startsWith('lib/')) {
+                    filepath = filepath.substring(4);
+                }
+
+                // Normalizar otras rutas problemáticas
+                filepath = filepath.replace(/^\/+/, '');
+                
+                if (filepath) {
+                    // Crear directorios anidados si es necesario
+                    libFolder.file(path.join(filepath, file.filename), file.filecontent);
+                    this.logger.log(`Archivo añadido: lib/${filepath}/${file.filename}`);
+                } else {
+                    // Añadir archivo directamente en la raíz de lib/
+                    libFolder.file(file.filename, file.filecontent);
+                    this.logger.log(`Archivo añadido: lib/${file.filename}`);
+                }
+            } catch (error) {
+                this.logger.error(`Error añadiendo archivo ${file.filename}:`, error);
+                throw error;
+            }
         }
     }
     
@@ -64,148 +212,25 @@ export class ExportService {
             .replace(/[^a-z0-9_]/g, '')
             .replace(/^[0-9]/, 'app_$&');
     }
-    
-    private async createFlutterProject(projectDir: string, projectName: string): Promise<void> {
-        try {
-            this.logger.log(`Generando proyecto Flutter "${projectName}" en ${projectDir}...`);
-            
-            // Construir comando para ng new
-            let flutterCreateCommand = `flutter create ${projectName} --project-name ${projectName}`;
-            
-            // Ejecutar comando para crear el proyecto
-            this.logger.log(`Ejecutando: ${flutterCreateCommand}`);
-            await execAsync(flutterCreateCommand, { cwd: projectDir });
-            
-            // Actualizar pubspec.yaml con las dependencias necesarias
-            await this.updatePubspecYaml(path.join(projectDir, projectName));
-            
-            this.logger.log('Proyecto Flutter generado correctamente');
-        } catch (error) {
-            this.logger.error('Error al generar proyecto Flutter con CLI:', error);
-            throw new Error('Error al ejecutar Flutter CLI: ' + error.message);
-        }
-    }
-
-    private async updatePubspecYaml(projectDir: string): Promise<void> {
-        const pubspecPath = path.join(projectDir, 'pubspec.yaml');
-        
-        if (fs.existsSync(pubspecPath)) {
-            let pubspecContent = fs.readFileSync(pubspecPath, 'utf8');
-            
-            // Agregar dependencias necesarias
-            const dependencies = `
-  # State management
-  flutter_riverpod: ^2.6.1
-  
-  # Navigation
-  go_router: ^15.1.1
-  
-  # HTTP requests
-  http: ^1.4.0
-  
-  # Local database
-  isar: 3.1.0
-  isar_flutter_libs: 3.1.0
-  
-  # Utilities
-  connectivity_plus: ^6.1.4
-  geolocator: ^10.1.0
-  path_provider: ^2.1.5
-  shared_preferences: ^2.5.3
-  socket_io_client: ^3.1.2
-  
-  # Background services and notifications
-  flutter_background_service: ^5.1.0
-  flutter_background_service_android: ^6.3.0
-  android_alarm_manager_plus: ^4.0.7
-  permission_handler: ^11.4.0
-  flutter_local_notifications: ^18.0.1`;
-
-            const devDependencies = `
-  isar_generator: 3.1.0
-  build_runner: any`;
-
-            // Reemplazar sección de dependencies
-            pubspecContent = pubspecContent.replace(
-                /(dependencies:\s*\n(?:\s+[^\n]*\n)*)/,
-                `dependencies:\n  flutter:\n    sdk: flutter\n  cupertino_icons: ^1.0.2${dependencies}\n\n`
-            );
-            
-            // Agregar dev_dependencies
-            pubspecContent = pubspecContent.replace(
-                /(dev_dependencies:\s*\n(?:\s+[^\n]*\n)*)/,
-                `dev_dependencies:\n  flutter_test:\n    sdk: flutter\n  flutter_lints: ^4.0.0${devDependencies}\n\n`
-            );
-            
-            fs.writeFileSync(pubspecPath, pubspecContent);
-            
-            // Ejecutar flutter pub get
-            await execAsync('flutter pub get', { cwd: projectDir });
-            
-            this.logger.log('pubspec.yaml actualizado con dependencias necesarias');
-        }
-    }
 
     private async generateFlutterCodeFromGrapesJS(grapesJsData: any): Promise<any[]> {
         try {
             this.logger.log('Generando código Flutter desde datos de GrapesJS...');
             
-            // Usar el servicio de IA para generar código Flutter
-            const grapesJsJsonString = typeof grapesJsData === 'string' ? grapesJsData : JSON.stringify(grapesJsData);
+            /// Convertir datos a string si es necesario
+            const grapesJsJsonString = typeof grapesJsData === 'string' 
+                ? grapesJsData 
+                : JSON.stringify(grapesJsData);
             
-            const generatedCode = await this.aiProcessingService.generateFlutterComponents({
-                grapesJsData: grapesJsJsonString,
-            });
+            // Usar el nuevo método específico para Flutter
+            const generatedFiles = await this.aiProcessingService.generateFlutterComponentsFromGrapesJS(grapesJsJsonString);
+            this.logger.log(`Generados ${generatedFiles.length} archivos Flutter`);
 
-            return generatedCode;
+            return generatedFiles;
         } catch (error) {
             this.logger.error('Error generando código Flutter:', error);
             throw new Error('Error al generar código Flutter desde GrapesJS: ' + error.message);
         }
-    }
-    
-
-    
-    private async zipProject(projectDir: string): Promise<Buffer> {
-        this.logger.log(`Comprimiendo proyecto en ${projectDir}...`);
-        
-        const zip = new JSZip();
-        
-        // Función recursiva para agregar archivos al ZIP
-        const addFilesToZip = (currentPath: string, zipFolder: JSZip) => {
-            const files = fs.readdirSync(currentPath);
-            
-            for (const file of files) {
-                const filePath = path.join(currentPath, file);
-                
-                // Excluir ciertos directorios/archivos que no son necesarios
-                if (this.shouldExcludeFromZip(file, filePath)) {
-                    continue;
-                }
-                
-                if (fs.statSync(filePath).isDirectory()) {
-                    // Si es un directorio, crear carpeta en ZIP y procesar recursivamente
-                    const newZipFolder = zipFolder.folder(file);
-                    addFilesToZip(filePath, newZipFolder);
-                } else {
-                    // Si es un archivo, agregarlo al ZIP
-                    const fileContent = fs.readFileSync(filePath);
-                    zipFolder.file(file, fileContent);
-                }
-            }
-        };
-        
-        // Agregar todos los archivos al ZIP
-        addFilesToZip(projectDir, zip);
-        
-        // Generar el buffer del ZIP
-        return await zip.generateAsync({
-            type: "nodebuffer",
-            compression: "DEFLATE",
-            compressionOptions: { level: 6 },
-            platform: "UNIX",
-            comment: "Proyecto Flutter generado por Collaborative Project"
-        });
     }
     
     private shouldExcludeFromZip(fileName: string, filePath: string): boolean {
@@ -213,33 +238,16 @@ export class ExportService {
         const excludePatterns = [
             'node_modules',
             '.dart_tool',
-            'build',
-            '.packages',
             '.pub-cache',
             '.gradle',
-            'ios/Pods',
-            'android/.gradle',
-            'android/app/build',
             '.git',
             '.gitignore',
-            '.DS_Store'
+            '.DS_Store',
+            'generated_plugin_registrant.dart'
         ];
         
-        return excludePatterns.some(pattern => fileName.includes(pattern) || filePath.includes(pattern));
+        // No excluir ningún otro archivo
+        return false;
     }
     
-
-    private cleanupTempFiles(projectDir: string): void {
-        try {
-            this.logger.log(`Limpiando archivos temporales en ${projectDir}...`);
-            
-            if (fs.existsSync(projectDir)) {
-                // Eliminar directorio recursivamente
-                fs.rmSync(projectDir, { recursive: true, force: true });
-            }
-        } catch (error) {
-            this.logger.error('Error limpiando archivos temporales:', error);
-            // No lanzamos error, solo registramos para no interrumpir el flujo principal
-        }
-    }
 }

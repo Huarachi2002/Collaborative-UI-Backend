@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { v4 as uuidv4 } from 'uuid';
-import { promptIABoceto, promptIAComponentsFlutter, promptIAGenerateFromPrompt } from "../constants/prompts";
+import { promptIABoceto, promptIAComponents, promptIAComponentsFlutter, promptIAGenerateFromPrompt } from "../constants/prompts";
 import OpenAI from "openai";
 
 interface Element {
@@ -72,7 +72,7 @@ export class AiProcessingService {
                         ],
                     },
                 ],
-                max_tokens: 4000,
+                max_tokens: 8000, 
             });
 
             const content = response.choices[0].message.content;
@@ -119,68 +119,6 @@ export class AiProcessingService {
         }
     }
 
-    private createDefaultProjectData(): any {
-    return {
-        "assets": [],
-        "styles": [
-            {
-                "selectors": [".default-container"],
-                "style": {
-                    "padding": "20px",
-                    "background-color": "#f5f5f5",
-                    "min-height": "400px"
-                }
-            }
-        ],
-        "pages": [
-            {
-                "name": "Página Principal",
-                "frames": [
-                    {
-                        "component": {
-                            "type": "wrapper",
-                            "components": [
-                                {
-                                    "type": "section",
-                                    "attributes": {
-                                        "class": "default-container"
-                                    },
-                                    "components": [
-                                        {
-                                            "type": "text",
-                                            "content": "<h2>Boceto Detectado</h2><p>Se ha procesado tu boceto y se ha creado una estructura básica.</p>"
-                                        },
-                                        {
-                                            "type": "flutter-card",
-                                            "attributes": {
-                                                "class": "flutter-card",
-                                                "data-flutter-widget": "Card",
-                                                "data-flutter-package": "material"
-                                            },
-                                            "traits": {
-                                                "elevation": 4,
-                                                "borderRadius": 8,
-                                                "margin": 16,
-                                                "backgroundColor": "#ffffff"
-                                            },
-                                            "components": [
-                                                {
-                                                    "type": "text",
-                                                    "content": "<p>Contenido de la tarjeta generada automáticamente</p>"
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        ]
-    };
-}
-
     private isValidProjectData(data: any): boolean {
         return data &&
                 typeof data === 'object' &&
@@ -192,14 +130,24 @@ export class AiProcessingService {
                 Array.isArray(data.pages[0].frames);
     }
 
-    public async generateFlutterComponents(data: { grapesJsData: string }): Promise<any>{
+
+    public async generateFlutterComponentsFromGrapesJS(grapesJsData: string) : Promise<any[]> {
         try {
-            if (!this.openai) {
+            if(!this.openai){
                 throw new Error('OpenAI no está inicializado. Verifica tu API key.');
             }
-            
-            // Usar el nuevo prompt para Flutter
-            const prompt = promptIAComponentsFlutter(data.grapesJsData);
+
+            const modifiedGrapesJsData = JSON.stringify({
+                ...JSON.parse(typeof grapesJsData === 'string' ? grapesJsData : '{}'),
+                _meta: {
+                    dartSdkVersion: "3.1.5",
+                    flutterVersion: "3.13.9", // Versión compatible con tu template
+                    useCompatibleDependencies: true,
+                    useTemplate: true // Indicar que estamos usando un template
+                }
+            });
+
+            const prompt = promptIAComponentsFlutter(modifiedGrapesJsData);
 
             const response = await this.openai.chat.completions.create({
                 model: "gpt-4o",
@@ -212,17 +160,17 @@ export class AiProcessingService {
                 max_tokens: 8000, // Aumentar límite para código Flutter más extenso
             });
 
-
             const content = response.choices[0].message.content;
-            this.logger.log('Respuesta de OpenAI recibida para Flutter');
-            
+            this.logger.log('Respuesta de OpenAI recibida para componentes de Flutter');
+            console.log('Respuesta de OpenAI:', content);
+
             // Extraer y parsear la respuesta JSON
             const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
                             content.match(/```([\s\S]*?)```/) || 
                             [null, content];
-            
+
             let jsonString = jsonMatch[1] || content;
-            
+
             // Limpiar el JSON si es necesario
             if(!jsonString.trim().startsWith('[')) {
                 const startIndex = jsonString.indexOf('[');
@@ -241,60 +189,19 @@ export class AiProcessingService {
             }
 
             const parsedData = JSON.parse(jsonString);
-            
+        
             if (!Array.isArray(parsedData)) {
                 throw new Error('La respuesta debe ser un array de archivos Flutter');
             }
-            
+
             return parsedData;
         } catch (error) {
-            this.logger.error(`Error al generar componentes Angular:`, error);
-            throw new Error(`Error al generar componentes Angular: ` + error.message);
+            this.logger.error(`Error al generar componentes Flutter:`, error);
+            throw new Error(`Error al generar componentes Flutter: ` + error.message);
         }
     }
 
-    private async generateComponentsWithOpenAI(prompt: string, imageBase64: string): Promise<any> {
-
-        const response = await this.openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        { 
-                            type: "text", 
-                            text: prompt 
-                        },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                url: `data:image/jpeg;base64,${imageBase64}`
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens: 4000,
-            temperature: 0.7
-        });
-
-        const content = response.choices[0].message.content;
-
-        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/) || [null, content];
-
-        let jsonString = jsonMatch[1] || content;
-
-        if(!jsonString.trim().startsWith('{')) {
-            jsonString = jsonString.substring(jsonString.indexOf('{'));
-        }
-
-        if(!jsonString.trim().endsWith('}')) {
-            jsonString = jsonString.substring(0, jsonString.lastIndexOf('}') + 1);
-        }
-
-        return JSON.parse(jsonString);
-    }
-
+    // Método para generar un proyecto a partir de un prompt
     public async generateFromPrompt(propmt: string): Promise<any> {
         try {
             if (!this.openai) {
@@ -309,7 +216,7 @@ export class AiProcessingService {
                         content: promptIAGenerateFromPrompt(propmt)
                     }
                 ],
-                max_tokens: 4000,
+                max_tokens: 8000, 
                 temperature: 0.7
             });
 
